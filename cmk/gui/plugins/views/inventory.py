@@ -516,6 +516,18 @@ def inv_paint_container_ready(ready):
     return "if_state " + css_class, ready
 
 
+@decorate_inv_paint
+def inv_paint_service_status(status):
+    if status == 'running':
+        css_class = "if_state_up"
+    elif status == 'stopped':
+        css_class = "if_state_down"
+    else:
+        css_class = "if_not_available"
+
+    return "if_state " + css_class, status
+
+
 #.
 #   .--display hints-------------------------------------------------------.
 #   |           _ _           _               _     _       _              |
@@ -1527,8 +1539,7 @@ class NodeRenderer(object):
                                              False,
                                              header,
                                              icon=icon,
-                                             fetch_url=fetch_url,
-                                             tree_img="tree_black"):
+                                             fetch_url=fetch_url):
                 # Render only if it is open. We'll get the stuff via ajax later if it's closed
                 for child in inventory.sort_children(node.get_node_children()):
                     child.show(self, path=raw_invpath)

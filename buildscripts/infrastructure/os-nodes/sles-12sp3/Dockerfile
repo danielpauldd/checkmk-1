@@ -29,7 +29,18 @@ RUN zypper addrepo -G ${ARTIFACT_STORAGE}/repository/sles12sp3 sles12sp3 \
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
     && python get-pip.py
 RUN pip install --upgrade setuptools \
-    && pip install git+https://github.com/svenpanne/pipenv.git@41f30d7ac848fdfe3eb548ddd19b731bfa8c331a \
+    && pip install git+https://github.com/pypa/pipenv.git@2549656dc09e132d8ba2fa6327c939f5f9a951b7 \
     && zypper -n --no-gpg-checks in --replacefiles \
     $PACKAGES \
     && zypper clean -a
+
+# New packages that are not needed for the build toolchain above should be added here.
+# We avoid rebuild of the whole previous steps this way
+RUN zypper ref \
+    && zypper -n in -y --force-resolution \
+    joe \
+    vim \
+    && zypper clean -a
+
+ARG VERS_TAG
+RUN echo $VERS_TAG > /version.txt

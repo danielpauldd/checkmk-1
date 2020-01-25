@@ -3,54 +3,73 @@
 set -e -o pipefail
 
 GCC_MAJOR="8"
-GCC_MINOR="2"
+GCC_MINOR="3"
 GCC_PATCHLEVEL="0"
-BINUTILS_VERSION="2.32"
-GDB_VERSION="8.2.1"
+BINUTILS_VERSION="2.33.1"
+GDB_VERSION="8.3.1"
+
+MIRROR_URL="https://sourceware.org/pub/"
 
 GCC_VERSION="${GCC_MAJOR}.${GCC_MINOR}.${GCC_PATCHLEVEL}"
 PREFIX="/opt/gcc-${GCC_VERSION}"
 
 BUILD_DIR=/tmp/build-gcc-toolchain
 
-NEXUS="http://nexus:8081/repository/archives/"
 
-function log() {
+log() {
     echo "+++ $1"
 }
 
-function download-sources() {
-    # To avoid repeated downloads of the sources + the prerequisites, we
-    # pre-package things together:
-    # wget https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.gz
+download-from-nexus() {
+    DOWNLOAD_URL="${NEXUS_ARCHIVES_URL}$1"
+    log "Downloading ${DOWNLOAD_URL}"
+    curl --silent --fail --remote-name "${DOWNLOAD_URL}" || return
+    log "Using ${DOWNLOAD_URL}"
+}
 
-    log "Downloading binutils"
-    if ! curl -s -O "${NEXUS}binutils-${BINUTILS_VERSION}.tar.gz"; then
-        log "File not available from ${NEXUS}. Downloading from upstream"
-        curl -s -O https://sourceware.org/pub/binutils/releases/binutils-${BINUTILS_VERSION}.tar.gz
-        curl -s -u "${USERNAME}:${PASSWORD}" --upload-file "binutils-${BINUTILS_VERSION}.tar.gz" "${NEXUS}"
+download-from-mirror() {
+    FILE=$1
+    DOWNLOAD_URL=$2
+    log "File not available from ${NEXUS_ARCHIVES_URL}${FILE}, downloading from ${DOWNLOAD_URL}"
+    curl --silent --fail --remote-name "${DOWNLOAD_URL}"
+}
+
+upload-to-nexus() {
+    FILE=$1
+    log "Uploading ${FILE} to ${NEXUS_ARCHIVES_URL}"
+    curl --silent --user "${USERNAME}:${PASSWORD}" --upload-file "${FILE}" "${NEXUS_ARCHIVES_URL}"
+    log "Upload of ${FILE} done"
+}
+
+download-sources() {
+    log "Dowload parameters: NEXUS_ARCHIVES_URL=[${NEXUS_ARCHIVES_URL}], USERNAME=[${USERNAME//?/X}], PASSWORD=[${PASSWORD//?/X}]"
+
+    FILE="binutils-${BINUTILS_VERSION}.tar.gz"
+    if ! download-from-nexus "${FILE}"; then
+        download-from-mirror "${FILE}" "${MIRROR_URL}binutils/releases/${FILE}"
+        upload-to-nexus "${FILE}"
     fi
 
-    log "Downloading gcc"
-    if ! curl -s -O "${NEXUS}gcc-${GCC_VERSION}-with-prerequisites.tar.gz"; then
-        log "File not available from ${NEXUS}. Downloading from upstream"
-        curl -s -O ftp://ftp.gwdg.de/pub/misc/gcc/releases/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.gz
+    FILE="gcc-${GCC_VERSION}-with-prerequisites.tar.gz"
+    if ! download-from-nexus "${FILE}"; then
+        download-from-mirror "${FILE}" "${MIRROR_URL}gcc/releases/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.gz"
+        # To avoid repeated downloads of the sources + the prerequisites, we pre-package things together.
+        log "Downloading and merging prerequisites"
         tar xzf gcc-${GCC_VERSION}.tar.gz
         (cd gcc-${GCC_VERSION} && ./contrib/download_prerequisites)
-        tar czf gcc-${GCC_VERSION}-with-prerequisites.tar.gz gcc-${GCC_VERSION}
-        curl -s -u "${USERNAME}:${PASSWORD}" --upload-file "gcc-${GCC_VERSION}-with-prerequisites.tar.gz" "${NEXUS}"
+        tar czf ${FILE} gcc-${GCC_VERSION}
+        upload-to-nexus "${FILE}"
     fi
 
-    log "Downloading gdb"
-    if ! curl -s -O "${NEXUS}gdb-${GDB_VERSION}.tar.gz"; then
-        log "File not available from ${NEXUS}. Downloading from upstream"
-        curl -s -O ftp://sourceware.org/pub/gdb/releases/gdb-${GDB_VERSION}.tar.gz
-        curl -s -u "${USERNAME}:${PASSWORD}" --upload-file "gdb-${GDB_VERSION}.tar.gz" "${NEXUS}"
+    FILE="gdb-${GDB_VERSION}.tar.gz"
+    if ! download-from-nexus "${FILE}"; then
+        download-from-mirror "${FILE}" "${MIRROR_URL}gdb/releases/${FILE}"
+        upload-to-nexus "${FILE}"
     fi
 }
 
-function build-binutils() {
-    log "Build binutils"
+build-binutils() {
+    log "Build binutils-${BINUTILS_VERSION}"
     cd ${BUILD_DIR}
     tar xzf binutils-${BINUTILS_VERSION}.tar.gz
     mkdir binutils-${BINUTILS_VERSION}-build
@@ -61,8 +80,8 @@ function build-binutils() {
     make install
 }
 
-function build-gcc() {
-    log "Build gcc"
+build-gcc() {
+    log "Build gcc-${GCC_VERSION}"
     cd ${BUILD_DIR}
     tar xzf gcc-${GCC_VERSION}-with-prerequisites.tar.gz
     mkdir gcc-${GCC_VERSION}-build
@@ -77,8 +96,8 @@ function build-gcc() {
     make install
 }
 
-function build-gdb() {
-    log "Build gdb"
+build-gdb() {
+    log "Build gdb-${GDB_VERSION}"
     cd ${BUILD_DIR}
     tar xzf gdb-${GDB_VERSION}.tar.gz
     mkdir gdb-${GDB_VERSION}-build
@@ -92,7 +111,7 @@ function build-gdb() {
     make install
 }
 
-function set-symlinks() {
+set-symlinks() {
     log "Set symlink"
     cd ${BUILD_DIR}
     ln -sf ${PREFIX}/bin/* /usr/bin
@@ -101,7 +120,7 @@ function set-symlinks() {
     rm -rf ${BUILD_DIR}
 }
 
-function build-all() {
+build-all() {
     log "Build all"
     mkdir -p ${BUILD_DIR}
     cd ${BUILD_DIR}
@@ -112,7 +131,7 @@ function build-all() {
     set-symlinks
 }
 
-while getopts ":hdbucgs" opt; do
+while getopts ":hdbucgsr:" opt; do
     case ${opt} in
     h)
         echo "Usage: cmd [-d] [-b] [-h]"
@@ -136,6 +155,10 @@ while getopts ":hdbucgs" opt; do
         ;;
     s)
         set-symlinks
+        ;;
+    r)
+        # Set URL to the repository where the binaries are stored
+        NEXUS_ARCHIVES_URL="${OPTARG}repository/archives/"
         ;;
     \?)
         echo "Usage: cmd [-d] [-b] [-h]"

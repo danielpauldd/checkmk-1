@@ -11,6 +11,7 @@
 #include <cstdint>  // wchar_t when compiler options set weird
 #include <functional>
 
+#include "common/wtools_service.h"
 #include "tools/_raii.h"
 #include "tools/_xlog.h"
 
@@ -44,6 +45,7 @@ int ExecSkypeTest();  // on skype :hidden
 int ExecResetOhm();   // on resetohm :hidden
 
 int ExecReloadConfig();
+int ExecUninstallAlert();
 int ExecRemoveLegacyAgent();
 void ExecUninstallClean();
 
@@ -51,6 +53,8 @@ int ExecRealtimeTest(bool Print);  // on rt
 int ExecCvtIniYaml(std::filesystem::path IniFile,
                    std::filesystem::path YamlFile,
                    StdioLog stdio_log);  // on cvt
+int ExecExtractCap(std::wstring_view cap_file,
+                   std::wstring_view to);  //
 int ExecSection(const std::wstring& SecName,
                 int RepeatPause,      // if 0 no repeat
                 StdioLog stdio_log);  // on section
@@ -60,6 +64,11 @@ int ServiceAsService(std::wstring_view app_name,
                          InternalCallback) noexcept;  // service execution
 
 void ProcessFirewallConfiguration(std::wstring_view app_name);
+[[maybe_unused]] bool ProcessServiceConfiguration(std::wstring_view app_name);
+
+// Converter API from YML language to wtools
+wtools::WinService::ErrorMode GetServiceErrorModeFromCfg(std::string_view text);
+wtools::WinService::StartMode GetServiceStartModeFromCfg(std::string_view text);
 
 // NAMES
 constexpr const wchar_t* kServiceName = L"CheckMkService";

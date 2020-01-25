@@ -47,7 +47,6 @@ from cmk.gui.valuespec import (
     EmailAddress,
     ListOf,
     Checkbox,
-    RadioChoice,
     Password,
     Percentage,
     CascadingDropdown,
@@ -1569,7 +1568,7 @@ rulespec_registry.register(
 def _valuespec_custom_checks():
     return Dictionary(
         title=_("Classical active and passive Monitoring checks"),
-        help=_("With this ruleset you can configure &quot;classical Monitoring checks&quot; "
+        help=_("With this ruleset you can configure \"classical Monitoring checks\" "
                "to be executed directly on your monitoring server. These checks "
                "will not use Check_MK. It is also possible to configure passive "
                "checks that are fed with data from external sources via the "
@@ -1737,21 +1736,19 @@ def _valuespec_active_checks_bi_aggr():
                           default_value=60,
                       )),
                      ("in_downtime",
-                      RadioChoice(title=_("State, if BI aggregate is in scheduled downtime"),
-                                  orientation="vertical",
-                                  choices=[
-                                      (None, _("Use normal state, ignore downtime")),
-                                      ("ok", _("Force to be OK")),
-                                      ("warn", _("Force to be WARN, if aggregate is not OK")),
-                                  ])),
+                      DropdownChoice(title=_("State, if BI aggregate is in scheduled downtime"),
+                                     choices=[
+                                         (None, _("Use normal state, ignore downtime")),
+                                         ("ok", _("Force to be OK")),
+                                         ("warn", _("Force to be WARN, if aggregate is not OK")),
+                                     ])),
                      ("acknowledged",
-                      RadioChoice(title=_("State, if BI aggregate is acknowledged"),
-                                  orientation="vertical",
-                                  choices=[
-                                      (None, _("Use normal state, ignore acknowledgement")),
-                                      ("ok", _("Force to be OK")),
-                                      ("warn", _("Force to be WARN, if aggregate is not OK")),
-                                  ])),
+                      DropdownChoice(title=_("State, if BI aggregate is acknowledged"),
+                                     choices=[
+                                         (None, _("Use normal state, ignore acknowledgement")),
+                                         ("ok", _("Force to be OK")),
+                                         ("warn", _("Force to be WARN, if aggregate is not OK")),
+                                     ])),
                      ("track_downtimes",
                       Checkbox(
                           title=_("Track downtimes"),

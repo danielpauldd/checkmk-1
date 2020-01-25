@@ -610,7 +610,7 @@ class NotificationParameterJIRA_ISSUES(NotificationParameter):
                  )),
                 ("resolution",
                  TextAscii(
-                     title=_("Activate resolution with following resolution transistion ID"),
+                     title=_("Activate resolution with following resolution transition ID"),
                      help=_("The numerical JIRA resolution transition ID. "
                             "11 - 'To Do', 21 - 'In Progress', 31 - 'Done'"),
                      size=3,
@@ -821,6 +821,16 @@ class NotificationParameterOpsgenie(NotificationParameter):
                              "subscription you can use global or team integration api "
                              "keys."),
                      allow_empty=False,
+                 )),
+                ("url",
+                 TextAscii(
+                     title=_("Domain (only used for european accounts)"),
+                     help=_("If you have an european account, please set the "
+                            "domain of your opsgenie. Specify an absolute URL like "
+                            "https://my.app.eu.opsgenie.com "),
+                     regex="^https://.*",
+                     regex_error=_("The URL must begin with <tt>https</tt>."),
+                     size=64,
                  )),
                 ("owner",
                  TextUnicode(

@@ -1,9 +1,9 @@
-import cmk_base.config as config
-import cmk_base.autochecks as autochecks
+import cmk.base.config as config
+import cmk.base.autochecks as autochecks
 import cmk.utils.tags
 
 
-class Scenario(object):
+class Scenario(object):  # pylint: disable=useless-object-inheritance
     """Helper class to modify the Check_MK base configuration for unit tests"""
     def __init__(self, site_id="unit"):
         super(Scenario, self).__init__()
@@ -112,7 +112,7 @@ class Scenario(object):
         if self._autochecks:
             monkeypatch.setattr(self.config_cache._autochecks_manager,
                                 "_raw_autochecks",
-                                {e[0]: e[1] for e in self._autochecks.iteritems()},
+                                dict(self._autochecks.items()),
                                 raising=False)
 
             monkeypatch.setattr(autochecks.AutochecksManager, "_read_raw_autochecks_of",

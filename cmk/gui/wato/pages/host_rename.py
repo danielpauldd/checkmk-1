@@ -594,7 +594,7 @@ def rename_host_in_multisite(oldname, newname):
 
         favpath = config.config_dir + "/" + userid + "/favorites.mk"
         num_changed = 0
-        favorites = store.load_data_from_file(favpath, [], lock=True)
+        favorites = store.load_object_from_file(favpath, default=[], lock=True)
         for nr, entry in enumerate(favorites):
             if entry == oldname:
                 favorites[nr] = newname
@@ -604,7 +604,7 @@ def rename_host_in_multisite(oldname, newname):
                 num_changed += 1
 
         if num_changed:
-            store.save_data_to_file(favpath, favorites)
+            store.save_object_to_file(favpath, favorites)
             users_changed += 1
             total_changed += num_changed
         store.release_lock(favpath)

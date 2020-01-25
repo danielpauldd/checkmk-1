@@ -29,6 +29,8 @@ constexpr std::string_view kVersionParam = "version";
 constexpr std::string_view kReloadConfigParam = "reload_config";
 constexpr std::string_view kRemoveLegacyParam = "remove_legacy";
 
+constexpr std::string_view kUninstallAlert = "uninstall_alert";  // from the msi
+
 constexpr std::string_view kExecParam = "exec";             // runs as app
 constexpr std::string_view kAdhocParam = "adhoc";           // runs as app
 constexpr std::string_view kExecParamShowWarn = "-show";    // logging sub param
@@ -47,6 +49,8 @@ constexpr std::string_view kUpgradeParamForce = "-force";  // upgrade LWA always
 constexpr std::string_view kCapParam = "cap";            // install files
 constexpr std::string_view kSectionParam = "section";    // dump section
 constexpr std::string_view kSectionParamShow = "-show";  // logging sub param
+
+constexpr std::string_view kCapExtractParam = "cap_ex";  // extract all from cap
 
 constexpr std::string_view kShowConfigParam = "showconfig";  // show config
 

@@ -959,7 +959,7 @@ class StarsIcon(Icon):
 
     def render(self, what, row, tags, custom_vars):
         if 'stars' not in g:
-            g.stars = set(config.user.load_file("favorites", []))
+            g.stars = config.user.stars.copy()
         stars = g.stars
 
         if what == "host":
@@ -1052,7 +1052,7 @@ class CrashdumpsIcon(Icon):
                     "This check crashed. Please inform a Check_MK user that is allowed "
                     "to view and submit crash reports to the development team.")
 
-            # Extract the crash ID produced by cmk_base/crash_reporting.py from output
+            # Extract the crash ID produced by cmk/base/crash_reporting.py from output
             match = re.search(r"\(Crash dump: ([^)]+)\)$", row["service_plugin_output"])
             if not match:
                 return 'crash', _(

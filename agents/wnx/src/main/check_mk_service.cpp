@@ -5,11 +5,11 @@
 #include "pch.h"
 // system C
 // system C++
+#include <yaml-cpp/yaml.h>
+
 #include <filesystem>
 #include <iostream>
 #include <string>
-
-#include "yaml-cpp/yaml.h"
 
 // Project
 #include "common/cmdline_info.h"
@@ -560,8 +560,20 @@ int MainFunction(int argc, wchar_t const *Argv[]) {
         return cma::srv::ExecSection(section, delay, diag);
     }
 
+    if (param == wtools::ConvertToUTF16(kCapExtractParam) && argc > 3) {
+        std::wstring file = Argv[2];
+        std::wstring to = Argv[3];
+        return cma::srv::ExecExtractCap(file, to);
+    }
+
     if (param == wtools::ConvertToUTF16(kReloadConfigParam)) {
         cma::srv::ExecReloadConfig();
+        return 0;
+    }
+
+    if (param == wtools::ConvertToUTF16(kUninstallAlert)) {
+        XLOG::l.i("UNINSTALL ALERT");
+        cma::srv::ExecUninstallAlert();
         return 0;
     }
 
@@ -579,7 +591,7 @@ int MainFunction(int argc, wchar_t const *Argv[]) {
         std::wstring(L"Provided Parameter \"") + param + L"\" is not allowed\n";
 
     ServiceUsage(text);
-    return 2;
+    return 13;
 }
 }  // namespace cma
 

@@ -112,7 +112,7 @@ def _ec_filter_host_information_of_not_permitted_hosts(rows):
     if config.user.may("mkeventd.seeall"):
         return  # Don't remove anything. The user may see everything
 
-    user_groups = set(config.user.contact_groups())
+    user_groups = set(config.user.contact_groups)
 
     def is_contact(row):
         return bool(user_groups.intersection(row["host_contact_groups"]))
@@ -801,7 +801,6 @@ def render_delete_event_icons(row):
             ident = int(html.request.var("id"))
 
             import cmk.gui.dashboard as dashboard
-            dashboard.load_dashboards()
             view = dashboard.get_dashlet(html.request.var("name"), ident)
 
             # These actions are not performed within the dashlet. Assume the title url still

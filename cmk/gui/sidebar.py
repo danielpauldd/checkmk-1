@@ -29,7 +29,8 @@ import traceback
 import json
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type, Union  # pylint: disable=unused-import
+from typing import Any, Dict, List, Optional, Tuple, Type, Union  # pylint: disable=unused-import
+from werkzeug.local import LocalProxy  # pylint: disable=unused-import
 
 import cmk
 import cmk.utils.paths
@@ -68,7 +69,7 @@ from cmk.gui.plugins.sidebar.utils import (  # pylint: disable=unused-import
 
 from cmk.gui.plugins.sidebar.quicksearch import QuicksearchMatchPlugin  # pylint: disable=unused-import
 
-quicksearch_match_plugins = []  # type: List[QuicksearchMatchPlugin]
+quicksearch_match_plugins = []  # type: List[Type[QuicksearchMatchPlugin]]
 
 # Datastructures and functions needed before plugins can be loaded
 loaded_with_language = False
@@ -164,6 +165,7 @@ def transform_old_quicksearch_match_plugins():
 class UserSidebarConfig(object):
     """Manages the configuration of the users sidebar"""
     def __init__(self, user, default_config):
+        # type: (LocalProxy, List[Tuple[str, str]]) -> None
         super(UserSidebarConfig, self).__init__()
         self._user = user
         self._default_config = copy.deepcopy(default_config)
@@ -171,6 +173,7 @@ class UserSidebarConfig(object):
 
     @property
     def folded(self):
+        # type: () -> bool
         return self._config["fold"]
 
     @folded.setter
@@ -220,9 +223,11 @@ class UserSidebarConfig(object):
         }
 
     def _user_config(self):
-        return self._user.load_file("sidebar", deflt=self._initial_config())
+        # type: () -> Dict[str, Any]
+        return self._user.get_sidebar_configuration(self._initial_config())
 
     def _load(self):
+        # type: () -> Dict[str, Any]
         """Load current state of user's sidebar
 
         Convert from old format (just a snapin list) to the new format
@@ -248,6 +253,7 @@ class UserSidebarConfig(object):
         return user_config
 
     def _transform_legacy_list_config(self, user_config):
+        # type: (Any) -> Dict[str, Any]
         if not isinstance(user_config, list):
             return user_config
 
@@ -257,6 +263,7 @@ class UserSidebarConfig(object):
         }
 
     def _transform_legacy_off_state(self, snapins):
+        # type: (List[Dict[str, str]]) -> List[Dict[str, str]]
         return [e for e in snapins if e["visibility"] != "off"]
 
     def _transform_legacy_tuples(self, snapins):
@@ -269,9 +276,10 @@ class UserSidebarConfig(object):
     def save(self):
         # type: () -> None
         if self._user.may("general.configure_sidebar"):
-            self._user.save_file("sidebar", self._to_config())
+            self._user.set_sidebar_configuration(self._to_config())
 
     def _from_config(self, cfg):
+        # type: (Dict[str, Any]) -> Dict[str, Any]
         return {
             "fold": cfg["fold"],
             "snapins": [UserSidebarSnapin.from_config(e) for e in cfg["snapins"]]
@@ -294,7 +302,7 @@ class UserSidebarSnapin(object):
     """An instance of a snapin that is configured in the users sidebar"""
     @staticmethod
     def from_config(cfg):
-        # type: (Dict[str, Type[cmk.gui.plugins.sidebar.SidebarSnapin]]) -> UserSidebarSnapin
+        # type: (Dict[str, Any]) -> UserSidebarSnapin
         """ Construct a UserSidebarSnapin object from the persisted data structure"""
         snapin_class = snapin_registry[cfg["snapin_type_id"]]
         return UserSidebarSnapin(snapin_class, SnapinVisibility(cfg["visibility"]))
@@ -856,4 +864,4 @@ def ajax_set_snapin_site():
 
     snapin_sites = config.user.load_file("sidebar_sites", {}, lock=True)
     snapin_sites[ident] = site
-    config.user.save_file("sidebar_sites", snapin_sites, unlock=True)
+    config.user.save_file("sidebar_sites", snapin_sites)

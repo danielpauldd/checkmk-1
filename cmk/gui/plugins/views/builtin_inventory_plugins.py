@@ -410,6 +410,37 @@ inventory_displayhints.update({
     ".software.applications.": {"title": _("Applications")},
     ".software.applications.check_mk.": {"title": _("Checkmk")},
     ".software.applications.check_mk.agent_version": {"title": _("Checkmk Agent Version")},
+    ".software.applications.check_mk.versions:": {
+        "title": _("Versions"),
+        "keyorder": ["version", "number", "edition", "demo", "num_sites"],
+    },
+    ".software.applications.check_mk.versions:*.demo": {"paint": "bool"},
+    ".software.applications.check_mk.sites:": {
+        "title": _("Sites"),
+        "keyorder": [
+            "site",
+            "used_version",
+            "num_hosts",
+            "num_services",
+            "check_helper_usage",
+            "check_mk_helper_usage",
+            "livestatus_usage",
+            "autostart",
+        ],
+    },
+    ".software.applications.check_mk.sites:*.autostart": {"paint": "bool"},
+    ".software.applications.check_mk.sites:*.apache": {"paint": "service_status"},
+    ".software.applications.check_mk.sites:*.cmc": {"paint": "service_status"},
+    ".software.applications.check_mk.sites:*.crontab": {"paint": "service_status"},
+    ".software.applications.check_mk.sites:*.dcd": {"paint": "service_status"},
+    ".software.applications.check_mk.sites:*.liveproxyd": {"paint": "service_status"},
+    ".software.applications.check_mk.sites:*.mkeventd": {"paint": "service_status"},
+    ".software.applications.check_mk.sites:*.mknotifyd": {"paint": "service_status"},
+    ".software.applications.check_mk.sites:*.rrdcached": {"paint": "service_status"},
+    ".software.applications.check_mk.sites:*.stunnel": {"paint": "service_status"},
+    ".software.applications.check_mk.sites:*.xinetd": {"paint": "service_status"},
+    ".software.applications.check_mk.sites:*.nagios": {"paint": "service_status"},
+    ".software.applications.check_mk.sites:*.npcd": {"paint": "service_status"},
     ".software.applications.check_mk.cluster.is_cluster": {
         "title": _("Cluster host"), "short": _("Cluster"), "paint": "bool"
     },
@@ -591,7 +622,7 @@ inventory_displayhints.update({
     ".software.applications.oracle.instance:*.logins": {"title": _("Logins")},
     ".software.applications.oracle.instance:*.db_uptime": {"title": _("Uptime"), "paint": "age"},
     ".software.applications.oracle.instance:*.db_creation_time": {
-        "title": _("Creation time"), "paint": "date_and_time"
+        "title": _("Creation time"),
     },
     ".software.applications.oracle.dataguard_stats:": {
         "title": _("Dataguard statistics"),

@@ -7,6 +7,7 @@
 #include <shlobj.h>  // known path
 #include <versionhelpers.h>
 #include <windows.h>
+#include <yaml-cpp/yaml.h>
 
 #include <atomic>
 #include <filesystem>
@@ -27,7 +28,6 @@
 #include "tools/_raii.h"     // on out
 #include "tools/_tgt.h"      // we need IsDebug
 #include "windows_service_api.h"
-#include "yaml-cpp/yaml.h"
 
 namespace cma::cfg {
 using ConfigRepo = MicroRepo<cma::cfg::details::ConfigInfo>;
@@ -47,6 +47,7 @@ namespace cma {
 namespace details {
 
 // internal and hidden global variables
+// #GLOBAL x2
 bool G_Service = false;  // set to true only when we run service
 bool G_Test = false;     // set to true only when we run watest
 
@@ -659,7 +660,7 @@ void Folders::cleanAll() {
 
 CleanMode GetCleanDataFolderMode() {
     auto mode_text = GetVal(groups::kSystem, vars::kCleanupUninstall,
-                            std::string(values::kCleanupNone));
+                            std::string(values::kCleanupSmart));
     if (cma::tools::IsEqual(mode_text, values::kCleanupNone))
         return CleanMode::none;
 

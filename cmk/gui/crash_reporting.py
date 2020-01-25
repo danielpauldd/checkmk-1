@@ -32,8 +32,9 @@ import time
 import pprint
 import traceback
 import json
-from typing import Dict, Text  # pylint: disable=unused-import
+from typing import Dict, Text, Optional  # pylint: disable=unused-import
 import six
+import livestatus
 
 import cmk.gui.pages
 import cmk.gui.i18n
@@ -41,6 +42,8 @@ from cmk.gui.i18n import _
 from cmk.gui.globals import html
 from cmk.gui.htmllib import HTML
 import cmk.gui.userdb as userdb
+from cmk.gui.log import logger
+from cmk.gui.plugins.views.crash_reporting import CrashReportsRowTable
 from cmk.gui.exceptions import MKUserError
 from cmk.gui.valuespec import (
     EmailAddress,
@@ -52,6 +55,15 @@ import cmk.gui.forms as forms
 import cmk.utils.crash_reporting
 
 CrashReportStore = cmk.utils.crash_reporting.CrashReportStore
+
+
+def handle_exception_as_gui_crash_report(details=None, plain_error=False, fail_silently=False):
+    # type: (Optional[Dict], bool, bool) -> None
+    crash = GUICrashReport.from_exception(details=details)
+    CrashReportStore().save(crash)
+
+    logger.exception("Unhandled exception (Crash-ID: %s)", crash.ident_to_text())
+    show_crash_dump_message(crash, plain_error, fail_silently)
 
 
 def show_crash_dump_message(crash, plain_text, fail_silently):
@@ -108,7 +120,7 @@ class GUICrashReport(cmk.utils.crash_reporting.ABCCrashReport):
                 for key, value in html.request.itervars()
             },
             "username": config.user.id,
-            "user_agent": html.request.user_agent,
+            "user_agent": html.request.user_agent.string,
             "referer": html.request.referer,
             "is_mobile": html.is_mobile(),
             "is_ssl_request": html.request.is_ssl_request,
@@ -132,7 +144,7 @@ class ABCCrashReportPage(six.with_metaclass(abc.ABCMeta, cmk.gui.pages.Page)):
         return json.loads(row["crash_info"])
 
     def _get_crash_row(self):
-        row = _get_crash_report_row(self._crash_id, self._site_id)
+        row = self._get_crash_report_row(self._crash_id, self._site_id)
         if not row:
             raise MKUserError(
                 None,
@@ -140,8 +152,21 @@ class ABCCrashReportPage(six.with_metaclass(abc.ABCMeta, cmk.gui.pages.Page)):
                 (self._crash_id, self._site_id))
         return row
 
+    def _get_crash_report_row(self, crash_id, site_id):
+        # type: (Text, Text) -> Optional[Dict[Text, Text]]
+        rows = CrashReportsRowTable().get_crash_report_rows(
+            only_sites=[config.SiteId(bytes(site_id))],
+            filter_headers="Filter: id = %s" % livestatus.lqencode(crash_id))
+        if not rows:
+            return None
+        return rows[0]
+
     def _get_serialized_crash_report(self):
-        return {k: v for k, v in self._get_crash_row().iteritems() if k not in ["site", "crash_id"]}
+        return {
+            k: v
+            for k, v in self._get_crash_row().iteritems()
+            if k not in ["site", "crash_id", "crash_type"]
+        }
 
 
 @cmk.gui.pages.page_registry.register_page("crash")
@@ -230,7 +255,7 @@ class PageCrash(ABCCrashReportPage):
                   "support email address to send us a mail refering to your crash "
                   "report.<br>If you are interested in the details about support, "
                   "you find details on <a href=\"https://checkmk.com/"
-                  "checkmk_support_contract.html\" target=_blank>our website</a>."))
+                  "checkmk_support_contract.html\" target=\"_blank\">our website</a>."))
             html.close_div()
             html.open_div(id_="fail_msg", style="display:none")
             report_url = html.makeuri([
@@ -411,8 +436,8 @@ class ReportRendererCheck(ABCReportRenderer):
         return "check"
 
     def context_buttons(self, crash_info, site_id):
-        host = crash_info["host"]
-        service = crash_info["description"]
+        host = crash_info["details"]["host"]
+        service = crash_info["details"]["description"]
 
         host_url = html.makeuri(
             [
@@ -499,15 +524,6 @@ class ReportRendererGUI(ABCReportRenderer):
         _crash_row(_("Language"), details["language"], odd=False)
 
         html.close_table()
-
-
-def _get_crash_report_row(crash_id, site_id):
-    # TODO: Drop this once the livestatus table is ready
-    from cmk.gui.plugins.views.crash_reporting import CrashReportsRowTable
-    for row in CrashReportsRowTable()._crash_report_rows_from_local_site():
-        if row["site"] == site_id and row["crash_id"] == crash_id:
-            return row
-    return None
 
 
 def _crash_row(title, infotext, odd=True, legend=False, pre=False):

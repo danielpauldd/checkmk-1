@@ -3,8 +3,11 @@
 
 #include "pch.h"
 
+#include <yaml-cpp/yaml.h>
+
 #include <chrono>
 #include <filesystem>
+#include <future>
 
 #include "cfg_details.h"
 #include "common/cfg_info.h"
@@ -14,13 +17,16 @@
 #include "test_tools.h"
 #include "tools/_misc.h"
 #include "tools/_process.h"
-#include "yaml-cpp/yaml.h"
+
+namespace cma::details {
+extern bool G_Service;
+extern bool G_Test;
+}  // namespace cma::details
 
 namespace wtools {  // to become friendly for cma::cfg classes
 
 TEST(Wtools, ScanProcess) {
     using namespace std::chrono;
-    ON_OUT_OF_SCOPE(printf("eof ScanProcess\n"));
     try {
         std::vector<std::string> names;
 
@@ -110,7 +116,6 @@ TEST(Wtools, ScanProcess) {
 }
 
 TEST(Wtools, ConditionallyConvertLowLevel) {
-    ON_OUT_OF_SCOPE(printf("eof CCLL\n"));
     {
         std::vector<uint8_t> v = {0xFE, 0xFE};
         EXPECT_FALSE(wtools::IsVectorMarkedAsUTF16(v));
@@ -388,6 +393,12 @@ TEST(Wtools, KillTree) {
     EXPECT_FALSE(kProcessTreeKillAllowed);
 }
 
+TEST(Wtools, IsHandleValid) {
+    EXPECT_FALSE(IsHandleValid(nullptr));
+    EXPECT_FALSE(IsHandleValid(INVALID_HANDLE_VALUE));
+    EXPECT_TRUE(IsHandleValid(reinterpret_cast<HANDLE>(4)));
+}
+
 TEST(Wtools, Acl) {
     wtools::ACLInfo info("c:\\windows\\notepad.exe");
     auto ret = info.query();
@@ -427,6 +438,21 @@ TEST(Wtools, LineEnding) {
 
     auto result = ReadWholeFile(work_file);
     EXPECT_EQ(result, expected);
+}
+
+TEST(Wtools, UserGroupName) {
+    cma::OnStartTest();
+    EXPECT_TRUE(GenerateCmaUserNameInGroup(L"").empty());
+    EXPECT_EQ(GenerateCmaUserNameInGroup(L"XX"), L"cmk_TST_XX");
+
+    cma::details::G_Service = true;
+    ON_OUT_OF_SCOPE(cma::details::G_Service = false;
+                    cma::details::G_Test = true);
+
+    EXPECT_EQ(GenerateCmaUserNameInGroup(L"XX"), L"cmk_in_XX");
+    cma::details::G_Service = false;
+    cma::details::G_Test = false;
+    EXPECT_TRUE(GenerateCmaUserNameInGroup(L"XX").empty());
 }
 
 }  // namespace wtools

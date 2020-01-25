@@ -57,9 +57,18 @@ _translation = None  # type: Optional[Translation]
 
 def _(message):
     # type: (str) -> Text
-    if not _translation:
-        return six.text_type(message)
-    return _translation.translation.ugettext(message)
+    if _translation:
+        return _translation.translation.ugettext(message)
+    return six.text_type(message)
+
+
+def ungettext(singular, plural, n):
+    # type: (str, str, int) -> Text
+    if _translation:
+        return _translation.translation.ungettext(singular, plural, n)
+    if n == 1:
+        return six.text_type(singular)
+    return six.text_type(plural)
 
 
 def get_current_language():
@@ -88,9 +97,9 @@ def _get_package_language_dirs():
     are then used in addition to the builtin and local localization files.
     """
     package_locale_dir = cmk.utils.paths.local_locale_dir / "packages"
-    if not package_locale_dir.exists():
+    if not package_locale_dir.exists():  # pylint: disable=no-member
         return []
-    return list(package_locale_dir.iterdir())
+    return list(package_locale_dir.iterdir())  # pylint: disable=no-member
 
 
 def get_language_alias(lang):
@@ -135,7 +144,7 @@ def unlocalize():
 
 
 def localize(lang):
-    # type: (str) -> None
+    # type: (Optional[str]) -> None
     global _translation
     if lang is None:
         unlocalize()

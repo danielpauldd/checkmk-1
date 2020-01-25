@@ -94,6 +94,9 @@ const char* const kPluginCacheAge = "cache_age";  // int
 const char* const kPluginExe = "exe";             // string
 const char* const kPluginRun = "run";             // bool
 
+const char* const kPluginGroup = "group";  // string
+const char* const kPluginUser = "user";    // string
+
 // group "winperf"
 // root
 const char* const kWinPerfCounters = "counters";      // seq
@@ -169,22 +172,48 @@ const char* const kMrpeParallel = "parallel";  // boool
 
 // group "system"
 constexpr const char* const kFirewall = "firewall";  // dictionary
-constexpr const char* const kMode = "mode";          // string
+constexpr const char* const kFirewallMode = "mode";  // string
+constexpr const char* const kFirewallPort = "port";  // string
 
 constexpr const char* const kCleanupUninstall = "cleanup_uninstall";  // string
+
+constexpr const char* const kService = "service";                  // dictionary
+constexpr const char* const kRestartOnCrash = "restart_on_crash";  // bool
+constexpr const char* const kErrorMode = "error_mode";             // string
+constexpr const char* const kStartMode = "start_mode";             // string
 
 }  // namespace vars
 
 namespace values {
-// FIREWALL.MOde
-constexpr const char* const kModeConfigure = "configure";  // install
+// Firewall.Mode
+constexpr const char* const kModeConfigure = "configure";  // install [*]
 constexpr const char* const kModeNone = "none";            // does noting
-constexpr const char* const kModeClear = "clear";          // remove
+constexpr const char* const kModeRemove = "remove";        // remove
+
+// Firewall.Port
+constexpr const char* const kFirewallPortAll = "all";    // open all ports
+constexpr const char* const kFirewallPortAuto = "auto";  // port in config, [*]
 
 // CleanupUninstall
 constexpr const char* const kCleanupNone = "none";    // delete nothing
-constexpr const char* const kCleanupSmart = "smart";  // delete only installed
+constexpr const char* const kCleanupSmart = "smart";  // delete only owned [*]
 constexpr const char* const kCleanupAll = "all";      // delete all
 
+// service.start_mode
+constexpr const char* const kStartModeAuto = "auto";          // start on boot
+constexpr const char* const kStartModeDemand = "demand";      // start manually
+constexpr const char* const kStartModeDisabled = "disabled";  // start disabled
+
+constexpr const char* const kErrorModeIgnore = "ignore";  // do nothing
+constexpr const char* const kErrorModeLog = "log";        // log situation
+
 }  // namespace values
+
+namespace defaults {
+constexpr const char* const kStartMode = values::kStartModeAuto;
+constexpr const char* const kErrorMode = values::kErrorModeLog;
+constexpr bool kRestartOnCrash = true;
+
+}  // namespace defaults
+
 }  // namespace cma::cfg

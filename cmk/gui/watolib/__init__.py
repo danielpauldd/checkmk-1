@@ -64,9 +64,6 @@ import cmk.utils.defines
 import cmk.utils
 import cmk.utils.store as store
 import cmk.utils.render as render
-# It's OK to import centralized config load logic
-import cmk.ec.defaults  # pylint: disable=cmk-module-layer-violation
-import cmk.ec.export  # pylint: disable=cmk-module-layer-violation
 import cmk.utils.regex
 import cmk.utils.plugin_registry
 
@@ -457,19 +454,31 @@ class ConfigGeneratorBasicWATOConfig(SampleConfigGenerator):
                 },
             },],
 
-            # Enable HW/SW inventory + status data inventory for docker containers by default to
-            # simplify the setup procedure of docker monitoring
+            # Enable HW/SW inventory + status data inventory for docker containers and Check-MK servers by default to
+            # simplify the setup procedure for them
             'active_checks': {
-                'cmk_inv': [{
-                    'condition': {
-                        'host_labels': {
-                            u'cmk/docker_object': u'node'
-                        }
+                'cmk_inv': [
+                    {
+                        'condition': {
+                            'host_labels': {
+                                u'cmk/docker_object': u'node',
+                            }
+                        },
+                        'value': {
+                            'status_data_inventory': True
+                        },
                     },
-                    'value': {
-                        'status_data_inventory': True
+                    {
+                        'condition': {
+                            'host_labels': {
+                                u'cmk/check_mk_server': u'yes',
+                            }
+                        },
+                        'value': {
+                            'status_data_inventory': True
+                        },
                     },
-                },]
+                ]
             },
 
             # Interval for HW/SW-Inventory check
@@ -531,61 +540,86 @@ class ConfigGeneratorBasicWATOConfig(SampleConfigGenerator):
     def _initial_global_settings(self):
         settings = {
             "use_new_descriptions_for": [
-                "df",
-                "df_netapp",
-                "df_netapp32",
-                "esx_vsphere_datastores",
-                "hr_fs",
-                "vms_diskstat.df",
-                "zfsget",
-                "ps",
-                "ps.perf",
-                "wmic_process",
-                "services",
-                "logwatch",
-                "logwatch.groups",
-                "cmk-inventory",
-                "hyperv_vms",
-                "ibm_svc_mdiskgrp",
-                "ibm_svc_system",
-                "ibm_svc_systemstats.diskio",
-                "ibm_svc_systemstats.iops",
-                "ibm_svc_systemstats.disk_latency",
-                "ibm_svc_systemstats.cache",
+                "aix_memory",
+                "barracuda_mailqueues",
+                "brocade_sys.mem",
                 "casa_cpu_temp",
-                "cmciii.temp",
+                "cisco_mem",
+                "cisco_mem_asa",
+                "cisco_mem_asa64",
                 "cmciii.psm_current",
+                "cmciii.temp",
                 "cmciii_lcp_airin",
                 "cmciii_lcp_airout",
                 "cmciii_lcp_water",
-                "etherbox.temp",
-                "liebert_bat_temp",
-                "nvidia.temp",
-                "ups_bat_temp",
-                "innovaphone_temp",
+                "cmk-inventory",
+                "db2_mem",
+                "df",
+                "df_netapp",
+                "df_netapp32",
+                "docker_container_mem",
                 "enterasys_temp",
-                "raritan_emx",
-                "raritan_pdu_inlet",
+                "esx_vsphere_datastores",
+                "esx_vsphere_hostsystem.mem_usage",
+                "esx_vsphere_hostsystem.mem_usage_cluster",
+                "etherbox.temp",
+                "fortigate_memory",
+                "fortigate_memory_base",
+                "fortigate_node.memory",
+                "hr_fs",
+                "hr_mem",
+                "http",
+                "huawei_switch_mem",
+                "hyperv_vms",
+                "ibm_svc_mdiskgrp",
+                "ibm_svc_system",
+                "ibm_svc_systemstats.cache",
+                "ibm_svc_systemstats.disk_latency",
+                "ibm_svc_systemstats.diskio",
+                "ibm_svc_systemstats.iops",
+                "innovaphone_mem",
+                "innovaphone_temp",
+                "juniper_mem",
+                "juniper_screenos_mem",
+                "juniper_trpz_mem",
+                "liebert_bat_temp",
+                "logwatch",
+                "logwatch.groups",
+                "mem.used",
+                "mem.win",
                 "mknotifyd",
                 "mknotifyd.connection",
-                "postfix_mailq",
-                "nullmailer_mailq",
-                "barracuda_mailqueues",
-                "qmail_stats",
-                "http",
                 "mssql_backup",
                 "mssql_counters.cache_hits",
-                "mssql_counters.transactions",
-                "mssql_counters.locks",
-                "mssql_counters.sqlstats",
-                "mssql_counters.pageactivity",
-                "mssql_counters.locks_per_batch",
                 "mssql_counters.file_sizes",
+                "mssql_counters.locks",
+                "mssql_counters.locks_per_batch",
+                "mssql_counters.pageactivity",
+                "mssql_counters.sqlstats",
+                "mssql_counters.transactions",
                 "mssql_databases",
                 "mssql_datafiles",
                 "mssql_tablespaces",
                 "mssql_transactionlogs",
                 "mssql_versions",
+                "netscaler_mem",
+                "nullmailer_mailq",
+                "nvidia.temp",
+                "postfix_mailq",
+                "ps",
+                "ps.perf",
+                "qmail_stats",
+                "raritan_emx",
+                "raritan_pdu_inlet",
+                "services",
+                "solaris_mem",
+                "sophos_memory",
+                "statgrab_mem",
+                "tplink_mem",
+                "ups_bat_temp",
+                "vms_diskstat.df",
+                "wmic_process",
+                "zfsget",
             ],
             "enable_rulebased_notifications": True,
             "ui_theme": "facelift",

@@ -14,14 +14,15 @@
 
 TableCrashReports::TableCrashReports(MonitoringCore *mc) : Table(mc) {
     addColumn(std::make_unique<OffsetSStringColumn>(
-        "id", "The ID of a crash report", -1, -1, -1,
-        DANGEROUS_OFFSETOF(CrashReport, _id)));
+        "id", "The ID of a crash report",
+        Column::Offsets{-1, -1, -1, DANGEROUS_OFFSETOF(CrashReport, _id)}));
     addColumn(std::make_unique<OffsetSStringColumn>(
-        "component", "The component that crashed (gui, agent, check, etc.)", -1,
-        -1, -1, DANGEROUS_OFFSETOF(CrashReport, _component)));
+        "component", "The component that crashed (gui, agent, check, etc.)",
+        Column::Offsets{-1, -1, -1,
+                        DANGEROUS_OFFSETOF(CrashReport, _component)}));
     addDynamicColumn(std::make_unique<DynamicHostFileColumn>(
-        "file", "Files related to the crash report (crash.info, etc.)", -1, -1,
-        -1, [mc] { return mc->crashReportPath(); },
+        "file", "Files related to the crash report (crash.info, etc.)",
+        Column::Offsets{}, [mc] { return mc->crashReportPath(); },
         [](const Column & /*unused*/, const Row & /*unused*/,
            const std::string &args) -> std::optional<std::filesystem::path> {
             return args;

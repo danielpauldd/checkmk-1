@@ -29,20 +29,14 @@
 #include "Logger.h"
 #include "Row.h"
 
-// TODO(ml): This is a generalization of HostFileColumn.
-//           The main difference is that the path where the file
-//           is located is entirely the business of the caller.
-//           This contrasts with HostFileColumn where the path
-//           must contain the host name.
 HostFileColumn::HostFileColumn(
     const std::string& name, const std::string& description,
-    int indirect_offset, int extra_offset, int extra_extra_offset, int offset,
+    const Column::Offsets& offsets,
     std::function<std::filesystem::path()> basepath,
     std::function<std::optional<std::filesystem::path>(const Column&,
                                                        const Row&)>
         filepath)
-    : BlobColumn(name, description, indirect_offset, extra_offset,
-                 extra_extra_offset, offset)
+    : BlobColumn(name, description, offsets)
     , _basepath(std::move(basepath))
     , _filepath(std::move(filepath)) {}
 

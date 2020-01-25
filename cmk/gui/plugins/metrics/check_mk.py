@@ -43,7 +43,7 @@ from cmk.gui.plugins.metrics import (
     MAX_CORES,
     indexed_color,
 )
-from cmk.utils.aws_constants import AWSEC2InstTypes
+from cmk.utils.aws_constants import AWSEC2InstTypes, AWSEC2InstFamilies
 
 # TODO Graphingsystem:
 # - Default-Template: Wenn im Graph kein "range" angegeben ist, aber
@@ -471,6 +471,12 @@ metric_info["age"] = {
     "color": "#80f000",
 }
 
+metric_info["age_oldest"] = {
+    "title": _("Oldest age"),
+    "unit": "s",
+    "color": "35/a",
+}
+
 metric_info["last_updated"] = {
     "title": _("Last Updated"),
     "unit": "s",
@@ -826,7 +832,7 @@ metric_info["mem_trend"] = {
 }
 
 metric_info["trend_hoursleft"] = {
-    "title": _("Hours left until full"),
+    "title": _("Time left until full"),
     "unit": "s",
     "color": "#94b65a",
 }
@@ -2292,6 +2298,18 @@ metric_info["cpu_time_percent"] = {
     "title": _("CPU time"),
     "unit": "%",
     "color": "#94b65a",
+}
+
+metric_info["cpu_ready_percent"] = {
+    "title": _("CPU ready"),
+    "unit": "%",
+    "color": "15/a",
+}
+
+metric_info["cpu_costop_percent"] = {
+    "title": _("Co-Stop"),
+    "unit": "%",
+    "color": "11/a",
 }
 
 metric_info["system_time"] = {
@@ -4590,6 +4608,12 @@ metric_info["fan"] = {
     "color": "16/b",
 }
 
+metric_info["fan_perc"] = {
+    "title": _("Fan speed"),
+    "unit": "%",
+    "color": "16/b",
+}
+
 metric_info["inside_macs"] = {
     "title": _("Number of unique inside MAC addresses"),
     "unit": "count",
@@ -5303,16 +5327,23 @@ metric_info['aws_ec2_spot_fleet_total_target_capacity'] = {
 }
 
 metric_info['aws_ec2_running_ondemand_instances_total'] = {
-    'title': _('Total Running On-Demand Instances'),
+    'title': _('Total running On-Demand Instances'),
     'unit': 'count',
-    'color': '25/a',
+    'color': '#000000',
 }
 
-for inst_type in AWSEC2InstTypes:
+for i, inst_type in enumerate(AWSEC2InstTypes):
     metric_info['aws_ec2_running_ondemand_instances_%s' % inst_type] = {
-        'title': _('Total Running On-Demand %s Instances') % inst_type,
+        'title': _('Total running On-Demand %s Instances') % inst_type,
         'unit': 'count',
-        'color': '11/a',
+        'color': indexed_color(i, len(AWSEC2InstTypes)),
+    }
+
+for inst_fam in AWSEC2InstFamilies:
+    metric_info['aws_ec2_running_ondemand_instances_%s_vcpu' % inst_fam[0]] = {
+        'title': _('Total %s vCPUs') % AWSEC2InstFamilies[inst_fam],
+        'unit': 'count',
+        'color': '25/a',
     }
 
 metric_info['aws_consumed_lcus'] = {
@@ -6321,10 +6352,34 @@ metric_info["collectors_failing"] = {
     "color": "12/a",
 }
 
+metric_info["num_streams"] = {
+    "title": _("Streams"),
+    "unit": "count",
+    "color": "11/a",
+}
+
 # In order to use the "bytes" unit we would have to change the output of the check, (i.e. divide by
 # 1024) which means an invalidation of historic values.
 metric_info['kb_out_of_sync'] = {
     "title": _("KiB out of sync"),  # according to documentation
+    "unit": "count",
+    "color": "14/a",
+}
+
+metric_info['jira_count'] = {
+    "title": _("Number of issues"),
+    "unit": "count",
+    "color": "14/a",
+}
+
+metric_info['jira_sum'] = {
+    "title": _("Result of summed up values"),
+    "unit": "count",
+    "color": "14/a",
+}
+
+metric_info['jira_avg'] = {
+    "title": _("Average value"),
     "unit": "count",
     "color": "14/a",
 }
@@ -6467,6 +6522,8 @@ for check in [
     }
 
 check_metrics["check_mk-winperf_processor.util"].update({"util": {"name": "util_numcpu_as_max"}})
+check_metrics["check_mk-netapp_api_cpu"] = {"util": {"name": "util_numcpu_as_max"}}
+check_metrics["check_mk-netapp_api_cpu.utilization"] = {"util": {"name": "util_numcpu_as_max"}}
 
 check_metrics["check_mk-citrix_serverload"] = {
     "perf": {
@@ -9138,6 +9195,24 @@ perfometer_info.append({
     "perfometers": [
         {
             "type": "logarithmic",
+            "metric": "if_in_bps",
+            "half_value": 5000000,
+            "exponent": 5,
+        },
+        {
+            "type": "logarithmic",
+            "metric": "if_out_bps",
+            "half_value": 5000000,
+            "exponent": 5,
+        },
+    ],
+})
+
+perfometer_info.append({
+    "type": "dual",
+    "perfometers": [
+        {
+            "type": "logarithmic",
             "metric": "if_in_octets",
             "half_value": 5000000,
             "exponent": 5,
@@ -9864,17 +9939,20 @@ perfometer_info.append({
     "color": "16/a",
 })
 
-perfometer_info.append(("stacked", [{
-    "type": "logarithmic",
-    "metric": "elasticsearch_size_rate",
-    "half_value": 5000,
-    "exponent": 2,
-}, {
-    "type": "logarithmic",
-    "metric": "elasticsearch_count_rate",
-    "half_value": 10,
-    "exponent": 2,
-}]))
+perfometer_info.append({
+    'type': 'stacked',
+    'perfometers': [{
+        'type': 'logarithmic',
+        'metric': 'elasticsearch_size_rate',
+        'half_value': 5000,
+        'exponent': 2,
+    }, {
+        'type': 'logarithmic',
+        'metric': 'elasticsearch_count_rate',
+        'half_value': 10,
+        'exponent': 2,
+    }],
+})
 
 perfometer_info.append({
     "type": "logarithmic",
@@ -9884,15 +9962,18 @@ perfometer_info.append({
     "unit": "count",
 })
 
-perfometer_info.append(("dual", [{
-    "type": "linear",
-    "segments": ["active_primary_shards"],
-    "total": "active_shards",
-}, {
-    "type": "linear",
-    "segments": ["active_shards"],
-    "total": "active_shards",
-}]))
+perfometer_info.append({
+    'type': 'dual',
+    'perfometers': [{
+        'type': 'linear',
+        'segments': ['active_primary_shards'],
+        'total': 'active_shards',
+    }, {
+        'type': 'linear',
+        'segments': ['active_shards'],
+        'total': 'active_shards',
+    }],
+})
 
 perfometer_info.append({
     "type": "linear",
@@ -9953,6 +10034,16 @@ perfometer_info.append({
 #          ('tablespace_used', 'area')
 
 graph_info["fan_speed"] = {"title": _("Fan speed"), "metrics": [("fan_speed", "area"),]}
+
+graph_info["aws_ec2_running_ondemand_instances"] = {
+    "title": _("Total running On-Demand Instances"),
+    "metrics": [('aws_ec2_running_ondemand_instances_total', 'line')] +
+               [('aws_ec2_running_ondemand_instances_%s' % inst_type, "stack")
+                for inst_type in AWSEC2InstTypes],
+    "optional_metrics": [
+        'aws_ec2_running_ondemand_instances_%s' % inst_type for inst_type in AWSEC2InstTypes
+    ],
+}
 
 graph_info["context_switches"] = {
     "title": _("Context switches"),
@@ -10364,6 +10455,7 @@ graph_info["cpu_utilization_numcpus"] = {
         "util_numcpu_as_max:crit",
     ],
     "range": (0, 100),
+    "optional_metrics": ["user"],
 }
 
 #TODO which warn,crit?
@@ -10908,7 +11000,7 @@ graph_info["ram_swap_used"] = {
     ],
     "conflicting_metrics": ["swap_total"],
     "scalars": [
-        ("swap_used:max,mem_used:max,+#008080", _("Total RAM + SWAP installed")),
+        ("swap_used:max,mem_used:max,+#008080", _("Total RAM + Swap installed")),
         ("mem_used:max#80ffff", _("Total RAM installed")),
     ],
     "range": (0, "swap_used:max,mem_used:max,+"),

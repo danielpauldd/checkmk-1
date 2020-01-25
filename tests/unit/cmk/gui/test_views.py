@@ -17,7 +17,7 @@ import cmk.gui.plugins.views
 def view(register_builtin_html, load_plugins):
     view_name = "allhosts"
     view_spec = cmk.gui.views.multisite_builtin_views[view_name]
-    return cmk.gui.views.View(view_name, view_spec)
+    return cmk.gui.views.View(view_name, view_spec, view_spec.get("context", {}))
 
 
 def test_registered_painter_options():
@@ -299,6 +299,11 @@ def test_registered_commands():
             'permission': 'mkeventd.update',
             'tables': ['event'],
             'title': u'Update & Acknowledge'
+        },
+        'delete_crash_reports': {
+            'permission': 'action.delete_crash_report',
+            'tables': ['crash'],
+            'title': u'Delete crash reports',
         },
     }
 
@@ -5733,7 +5738,7 @@ def test_get_needed_regular_columns(view):
     view_name = "allhosts"
     view_spec = cmk.gui.views.multisite_builtin_views[view_name]
 
-    view = cmk.gui.views.View(view_name, view_spec)
+    view = cmk.gui.views.View(view_name, view_spec, view_spec.get("context", {}))
 
     columns = cmk.gui.views._get_needed_regular_columns(view.group_cells + view.row_cells, view.sorters, view.datasource)
     assert sorted(columns) == sorted([
@@ -5776,7 +5781,7 @@ def test_get_needed_regular_columns(view):
 def test_get_needed_join_columns(view):
     view_spec = copy.deepcopy(view.spec)
     view_spec["painters"].append(('service_description', None, None, u'CPU load'))
-    view = cmk.gui.views.View(view.name, view_spec)
+    view = cmk.gui.views.View(view.name, view_spec, view_spec.get("context", {}))
 
     columns = cmk.gui.views._get_needed_join_columns(view.join_cells, view.sorters)
     assert sorted(columns) == sorted([
@@ -5788,7 +5793,7 @@ def test_get_needed_join_columns(view):
 def test_create_view_basics():
     view_name = "allhosts"
     view_spec = cmk.gui.views.multisite_builtin_views[view_name]
-    view = cmk.gui.views.View(view_name, view_spec)
+    view = cmk.gui.views.View(view_name, view_spec, view_spec.get("context", {}))
 
     assert view.name == view_name
     assert view.spec == view_spec
@@ -5806,25 +5811,25 @@ def test_view_row_limit(view):
 @pytest.mark.parametrize("limit,permissions,result", [
     (None, [], 1000),
 
-    ("soft", [], 1000),
-    ("hard", [], 1000),
-    ("none", [], 1000),
+    ("soft", {}, 1000),
+    ("hard", {}, 1000),
+    ("none", {}, 1000),
 
-    ("soft", ["general.ignore_soft_limit"], 1000),
-    ("hard", ["general.ignore_soft_limit"], 5000),
+    ("soft", {"general.ignore_soft_limit": True}, 1000),
+    ("hard", {"general.ignore_soft_limit": True}, 5000),
     # Strange. Shouldn't this stick to the hard limit?
-    ("none", ["general.ignore_soft_limit"], 1000),
+    ("none", {"general.ignore_soft_limit": True}, 1000),
 
-    ("soft", ["general.ignore_soft_limit", "general.ignore_hard_limit"], 1000),
-    ("hard", ["general.ignore_soft_limit", "general.ignore_hard_limit"], 5000),
-    ("none", ["general.ignore_soft_limit", "general.ignore_hard_limit"], None),
+    ("soft", {"general.ignore_soft_limit": True, "general.ignore_hard_limit": True}, 1000),
+    ("hard", {"general.ignore_soft_limit": True, "general.ignore_hard_limit": True}, 5000),
+    ("none", {"general.ignore_soft_limit": True, "general.ignore_hard_limit": True}, None),
 ])
-def test_gui_view_row_limit(register_builtin_html, monkeypatch, limit, permissions, result):
+def test_gui_view_row_limit(register_builtin_html, monkeypatch, mocker, limit, permissions, result):
     if limit is not None:
         monkeypatch.setitem(html.request._vars, "limit", limit)
 
-    for perm in permissions:
-        monkeypatch.setitem(config.user.permissions, perm, True)
+    mocker.patch.object(config, "roles", {"nobody": {"permissions": permissions}})
+    mocker.patch.object(config.user, "role_ids", ["nobody"])
     assert cmk.gui.views.get_limit() == result
 
 def test_view_only_sites(view):
@@ -6055,6 +6060,22 @@ def test_registered_display_hints(load_plugins):
     '.software.applications.check_mk.host_labels:',
     '.software.applications.check_mk.host_labels:*.plugin_name',
     '.software.applications.check_mk.host_labels:*.label',
+    '.software.applications.check_mk.versions:',
+    '.software.applications.check_mk.versions:*.demo',
+    '.software.applications.check_mk.sites:',
+    '.software.applications.check_mk.sites:*.autostart',
+    '.software.applications.check_mk.sites:*.apache',
+    '.software.applications.check_mk.sites:*.cmc',
+    '.software.applications.check_mk.sites:*.crontab',
+    '.software.applications.check_mk.sites:*.dcd',
+    '.software.applications.check_mk.sites:*.liveproxyd',
+    '.software.applications.check_mk.sites:*.mkeventd',
+    '.software.applications.check_mk.sites:*.mknotifyd',
+    '.software.applications.check_mk.sites:*.rrdcached',
+    '.software.applications.check_mk.sites:*.stunnel',
+    '.software.applications.check_mk.sites:*.xinetd',
+    '.software.applications.check_mk.sites:*.nagios',
+    '.software.applications.check_mk.sites:*.npcd',
     '.software.applications.citrix.',
     '.software.applications.citrix.controller.',
     '.software.applications.citrix.controller.controller_version',

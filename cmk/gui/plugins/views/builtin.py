@@ -24,6 +24,8 @@
 # to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
 # Boston, MA 02110-1301 USA.
 
+from typing import Optional as _Optional, Tuple as _Tuple  # pylint: disable=unused-import
+
 from cmk.gui.i18n import _
 
 from . import (
@@ -40,6 +42,8 @@ service_view_painters = [
     ('svc_check_age', None),
     ('perfometer', None),
 ]
+
+_host_host_painter = ('host', 'host')  # type: _Tuple[str, _Optional[str]]
 
 # Same as list of services, but extended by the hostname
 host_service_view_painters = service_view_painters[:]
@@ -93,6 +97,7 @@ multisite_builtin_views.update({
             'hostalias',
             'host_labels',
             'host_tags',
+            'host_auxtags',
         ],
         'sorters': [
             ('site', False),
@@ -1671,11 +1676,11 @@ multisite_builtin_views.update({
     'hostgroups': {
         'browser_reload': 30,
         'column_headers': 'pergroup',
-        'datasource': 'hostgroups',
+        'datasource': 'merged_hostgroups',
         'description': _(
             'A short overview over all host groups, without an explicity listing of the actual hosts'
         ),
-        'group_painters': [('sitealias', 'sitehosts')],
+        'group_painters': [],
         'hard_filters': [],
         'hard_filtervars': [],
         'hidden': False,
@@ -1916,6 +1921,7 @@ multisite_builtin_views.update({
             'host_staleness',
             'host_labels',
             'host_tags',
+            'host_auxtags',
             'hostalias',
             'host_favorites',
             'host_num_services',
@@ -1995,6 +2001,7 @@ multisite_builtin_views.update({
             'service_labels',
             'host_labels',
             'host_tags',
+            'host_auxtags',
             'hostalias',
             'host_favorites',
             'service_favorites',
@@ -2214,7 +2221,7 @@ multisite_builtin_views.update({
         'name': 'svcbygroups',
         'num_columns': 1,
         'owner': '',
-        'painters': [('host', 'host')] + service_view_painters,
+        'painters': [_host_host_painter] + service_view_painters,
         'public': True,
         'show_filters': [],
         'sorters': [
@@ -2256,11 +2263,11 @@ multisite_builtin_views.update({
     'svcgroups': {
         'browser_reload': 30,
         'column_headers': 'pergroup',
-        'datasource': 'servicegroups',
+        'datasource': 'merged_servicegroups',
         'description': _(
             'A short overview over all service groups, without explicity listing of the actual hosts and services'
         ),
-        'group_painters': [('sitealias', 'sitehosts')],
+        'group_painters': [],
         'hard_filters': [],
         'hard_filtervars': [],
         'hidden': False,
@@ -2350,6 +2357,7 @@ multisite_builtin_views.update({
             'serviceregex',
             'host_labels',
             'host_tags',
+            'host_auxtags',
             'hoststate',
         ],
         'sorters': [

@@ -166,7 +166,7 @@ def parse_memory(value):
 
 def left_join_dicts(initial, new, operation):
     d = {}
-    for key, value in initial.iteritems():
+    for key, value in initial.items():
         if isinstance(value, dict):
             d[key] = left_join_dicts(value, new.get(key, {}), operation)
         else:
@@ -196,7 +196,7 @@ class Metadata(object):
         if not selectors:
             return False
 
-        for name, value in selectors.iteritems():
+        for name, value in selectors.items():
             if name not in self.labels or self.labels[name] != value:
                 return False
         return True
@@ -435,6 +435,7 @@ class Pod(Metadata):
 
         status = pod.status
         if status:
+            self.phase = status.phase
             self.host_ip = status.host_ip
             self.pod_ip = status.pod_ip
             self.qos_class = status.qos_class
@@ -442,6 +443,7 @@ class Pod(Metadata):
                                         if status.container_statuses else [])
             self._conditions = status.conditions if status.conditions else []
         else:
+            self.phase = None
             self.host_ip = None
             self.pod_ip = None
             self.qos_class = None
@@ -798,14 +800,6 @@ class PersistentVolumeClaim(Metadata):
         self._spec = pvc.spec
 
     @property
-    def conditions(self):
-        # type: () -> Optional[client.V1PersistentVolumeClaimCondition]
-        # TODO: don't return client specific object
-        if self._status:
-            return self._status.conditions
-        return None
-
-    @property
     def phase(self):
         # type: () -> Optional[str]
         if self._status:
@@ -865,7 +859,7 @@ class K8sList(Generic[ListElem], MutableSequence):
     def group_by(self, selectors):
         grouped = {}
         for element in self:
-            for name, selector in selectors.iteritems():
+            for name, selector in selectors.items():
                 if element.matches(selector):
                     grouped.setdefault(name, self.__class__(elements=[])).append(element)
         return grouped
@@ -889,12 +883,12 @@ class NodeList(K8sList[Node]):
 
     def total_resources(self):
         merge = functools.partial(left_join_dicts, operation=operator.add)
-        return functools.reduce(merge, self.resources().itervalues())
+        return functools.reduce(merge, self.resources().values())
 
     def cluster_stats(self):
         stats = self.stats()
         merge = functools.partial(left_join_dicts, operation=operator.add)
-        result = functools.reduce(merge, stats.itervalues())
+        result = functools.reduce(merge, stats.values())
         # During the merging process the sum of all timestamps is calculated.
         # To obtain the average time of all nodes devide by the number of nodes.
         result['timestamp'] = round(result['timestamp'] / len(stats), 1)  # fixed: true-division
@@ -949,13 +943,17 @@ class PodList(K8sList[Pod]):
         return {
             node: {
                 'requests': {
-                    'pods': len(list(pods))
+                    'pods': len([pod for pod in pods if pod.phase not in ["Succeeded", "Failed"]])
                 }
             } for node, pods in by_node if node is not None
         }
 
     def pods_in_cluster(self):
-        return {'requests': {'pods': len(self)}}
+        return {
+            'requests': {
+                'pods': len([pod for pod in self if pod.phase not in ["Succeeded", "Failed"]])
+            }
+        }
 
     def info(self):
         return {pod.name: pod.info for pod in self}
@@ -1041,7 +1039,6 @@ class PersistentVolumeClaimList(K8sList[PersistentVolumeClaim]):
         return {
             pvc.name: {
                 'namespace': pvc.namespace,
-                'condition': pvc.conditions,
                 'phase': pvc.phase,
                 'volume': pvc.volume_name,
             } for pvc in self if pvc.name
@@ -1115,7 +1112,7 @@ class PiggybackGroup(object):
 
     def join(self, section_name, pairs):
         # type: (str, Mapping[str, Dict[str, Any]]) -> PiggybackGroup
-        for element_name, data in pairs.iteritems():
+        for element_name, data in pairs.items():
             section = self.get(element_name).get(section_name)
             section.insert(data)
         return self
@@ -1130,7 +1127,7 @@ class PiggybackGroup(object):
         # specify a name prefix.
         # see: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
         data = []
-        for name, element in self._elements.iteritems():
+        for name, element in self._elements.items():
             data.append('<<<<%s>>>>' % (piggyback_prefix + name))
             data.extend(element.output())
             data.append('<<<<>>>>')
@@ -1155,7 +1152,7 @@ class PiggybackHost(object):
     def output(self):
         # type: () -> List[str]
         data = []
-        for name, section in self._sections.iteritems():
+        for name, section in self._sections.items():
             data.append('<<<%s:sep(0)>>>' % name)
             data.append(section.output())
         return data
@@ -1172,7 +1169,7 @@ class Section(object):
 
     def insert(self, data):
         # type: (Dict[str, Any]) -> None
-        for key, value in data.iteritems():
+        for key, value in data.items():
             if key not in self._content:
                 self._content[key] = value
             else:
@@ -1381,7 +1378,7 @@ class ApiData(object):
         pod_names = {
             service_name: {
                 'names': [pod.name for pod in pods]
-            } for service_name, pods in self.pods.group_by(self.services.selector()).iteritems()
+            } for service_name, pods in self.pods.group_by(self.services.selector()).items()
         }
         g.join('k8s_assigned_pods', pod_names)
         return '\n'.join(g.output(piggyback_prefix="service_"))

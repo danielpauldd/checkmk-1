@@ -27,6 +27,8 @@
 import abc
 import re
 import json
+from typing import Optional as _Optional  # pylint: disable=unused-import
+
 import six
 
 import livestatus
@@ -45,7 +47,9 @@ from cmk.gui.valuespec import (
 )
 
 if cmk.is_managed_edition():
-    import cmk.gui.cme.plugins.visuals.managed  # pylint: disable=no-name-in-module
+    from cmk.gui.cme.plugins.visuals.managed import (  # pylint: disable=no-name-in-module
+        filter_cme_choices, filter_cme_heading_info,
+    )
 
 from cmk.gui.plugins.visuals import (
     filter_registry,
@@ -53,7 +57,11 @@ from cmk.gui.plugins.visuals import (
     FilterUnicodeFilter,
     FilterTristate,
     FilterTime,
-    FilterCRESite,
+)
+
+from cmk.gui.plugins.visuals.utils import (
+    filter_cre_choices,
+    filter_cre_heading_info,
 )
 
 
@@ -305,7 +313,7 @@ class FilterHostnameOrAlias(FilterUnicode):
 
 
 class FilterIPAddress(Filter):
-    _what = None
+    _what = None  # type: _Optional[str]
 
     def display(self):
         html.text_input(self.htmlvars[0])
@@ -1690,10 +1698,24 @@ class FilterHostScheduledDowntimeDepth(FilterNagiosFlag):
         FilterNagiosFlag.__init__(self, "host")
 
 
-if cmk.is_managed_edition():
-    SiteFilter = cmk.gui.cme.plugins.visuals.managed.FilterCMESite
-else:
-    SiteFilter = FilterCRESite
+class SiteFilter(Filter):
+    def __init__(self, enforce):
+        super(SiteFilter, self).__init__(
+            'host',
+            ["site"],
+            [],
+        )
+        self.enforce = enforce
+
+    def display(self):
+        choices = filter_cme_choices() if cmk.is_managed_edition() else filter_cre_choices()
+        html.dropdown("site", ([] if self.enforce else [("", "")]) + choices)
+
+    def heading_info(self):
+        return filter_cme_heading_info() if cmk.is_managed_edition() else filter_cre_heading_info()
+
+    def variable_settings(self, row):
+        return [("site", row["site"])]
 
 
 @filter_registry.register
@@ -2108,10 +2130,16 @@ class FilterLogClass(Filter):
             html.close_tr()
         html.close_table()
 
+    def _filter_used(self):
+        return any([html.request.has_var(v) for v in self.htmlvars])
+
     def filter(self, infoname):
+        if not self._filter_used():
+            return ""  # Do not apply this filter
+
         headers = []
         for l, _c in self.log_classes:
-            if html.get_checkbox("logclass%d" % l) != False:
+            if html.get_checkbox("logclass%d" % l):
                 headers.append("Filter: class = %d\n" % l)
 
         if len(headers) == 0:
@@ -2287,14 +2315,18 @@ class FilterLogState(Filter):
         Filter.__init__(
             self,
             "log",
-            ["logst_" + e[0] for e in self._items],
+            ["log_state_filled"] + ["logst_" + e[0] for e in self._items],
             [],
         )
 
     def double_height(self):
         return True
 
+    def _filter_used(self):
+        return any([html.request.has_var(v) for v in self.htmlvars])
+
     def display(self):
+        html.hidden_field("log_state_filled", "1", add_var=True)
         html.open_table(class_="alertstatefilter")
         html.open_tr()
         html.open_td()
@@ -2319,8 +2351,7 @@ class FilterLogState(Filter):
     def filter(self, infoname):
         headers = []
         for varsuffix, what, state, _text in self._items:
-            if html.get_checkbox("logst_" +
-                                 varsuffix) != False:  # None = form not filled in = allow
+            if html.get_checkbox("logst_" + varsuffix):
                 headers.append("Filter: log_type ~ %s .*\nFilter: log_state = %d\nAnd: 2\n" %
                                (what.upper(), state))
         if len(headers) == 0:
@@ -2920,7 +2951,7 @@ class FilterStarred(FilterTristate):
         else:
             aand, oor, eq = "Or", "And", "!="
 
-        stars = config.user.load_stars()
+        stars = config.user.stars
         filters = ""
         count = 0
         if self.what == "host":
@@ -3293,6 +3324,8 @@ class FilterAggrHosts(Filter):
 
 @filter_registry.register
 class FilterAggrService(Filter):
+    """Not performing filter(), nor filter_table(). The filtering is done directly in BI by
+    bi.table(), which calls service_spec()."""
     @property
     def ident(self):
         return "aggr_service"
@@ -3753,7 +3786,7 @@ class EventFilterState(Filter):
             return ""
 
         filters = []
-        for sel in selected:
+        for sel in sorted(selected):
             filters.append("Filter: %s = %s" % (self.ident, sel))
 
         f = "\n".join(filters)

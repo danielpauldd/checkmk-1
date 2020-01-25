@@ -29,13 +29,14 @@ import logging
 import os
 import re
 import signal
-import subprocess
 import traceback
 from pathlib2 import Path
 
 import cmk
 import cmk.utils.store as store
-from cmk.utils.encoding import make_utf8
+import cmk.utils.cmk_subprocess as subprocess
+
+import cmk.ec.export as ec  # pylint: disable=cmk-module-layer-violation
 
 import cmk.gui.hooks as hooks
 import cmk.gui.config as config
@@ -180,7 +181,7 @@ class ConfigDomainEventConsole(ABCConfigDomain):
         return config.mkeventd_enabled
 
     def config_dir(self):
-        return str(cmk.ec.export.rule_pack_dir())
+        return str(ec.rule_pack_dir())
 
     def activate(self):
         if getattr(config, "mkeventd_enabled", False):
@@ -191,7 +192,7 @@ class ConfigDomainEventConsole(ABCConfigDomain):
                 hooks.call("mkeventd-activate-changes")
 
     def default_globals(self):
-        return cmk.ec.defaults.default_config()
+        return ec.default_config()
 
 
 @config_domain_registry.register
@@ -213,7 +214,7 @@ class ConfigDomainCACertificates(ABCConfigDomain):
     ]
 
     _PEM_RE = re.compile(b"-----BEGIN CERTIFICATE-----\r?.+?\r?-----END CERTIFICATE-----\r?\n?"
-                         "", re.DOTALL)
+                         b"", re.DOTALL)
 
     def config_dir(self):
         return multisite_dir()
@@ -361,12 +362,15 @@ class ConfigDomainOMD(ABCConfigDomain):
 
         self._logger.debug("Executing \"omd config change\"")
         self._logger.debug("  Commands: %r" % config_change_commands)
-        p = subprocess.Popen(["omd", "config", "change"],
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT,
-                             stdin=subprocess.PIPE,
-                             close_fds=True)
-        stdout = p.communicate(make_utf8("\n".join(config_change_commands)))[0]
+        p = subprocess.Popen(
+            ["omd", "config", "change"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE,
+            close_fds=True,
+            encoding="utf-8",
+        )
+        stdout, _stderr = p.communicate(input="\n".join(config_change_commands))
         self._logger.debug("  Exit code: %d" % p.returncode)
         self._logger.debug("  Output: %r" % stdout)
         if p.returncode != 0:

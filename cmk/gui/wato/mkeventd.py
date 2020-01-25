@@ -53,7 +53,6 @@ import cmk.utils.render
 
 # It's OK to import centralized config load logic
 import cmk.ec.export as ec  # pylint: disable=cmk-module-layer-violation
-import cmk.ec.defaults  # pylint: disable=cmk-module-layer-violation
 
 if cmk.is_managed_edition():
     import cmk.gui.cme.managed as managed  # pylint: disable=no-name-in-module
@@ -1018,7 +1017,7 @@ class SampleConfigGeneratorECSampleRulepack(SampleConfigGenerator):
         return 50
 
     def generate(self):
-        save_mkeventd_rules([cmk.ec.defaults.default_rule_pack([])])
+        save_mkeventd_rules([ec.default_rule_pack([])])
 
 
 #.
@@ -1120,10 +1119,7 @@ class ABCEventConsoleMode(six.with_metaclass(abc.ABCMeta, WatoMode)):
                             "snmpmib")
 
     def _get_rule_pack_to_mkp_map(self):
-        if cmk.is_raw_edition():
-            return {}
-        package_info = watolib.check_mk_local_automation("get-package-info")
-        return ec.rule_pack_id_to_mkp(package_info)
+        return {} if cmk.is_raw_edition() else cmk.utils.packaging.rule_pack_id_to_mkp()
 
     def _vs_mkeventd_event(self):
         """Valuespec for simulating an event"""
@@ -2833,7 +2829,6 @@ class ConfigVariableEventConsoleRemoteStatus(ConfigVariable):
                   ListOfStrings(
                       help = _("The access to the event status via TCP will only be allowed from "
                                "this source IP addresses"),
-
                       valuespec = IPv4Address(),
                       orientation = "horizontal",
                       allow_empty = False,

@@ -46,7 +46,6 @@ from cmk.gui.valuespec import (
     ListChoice,
     Optional,
     Timerange,
-    RadioChoice,
 )
 from cmk.gui.i18n import _
 from cmk.gui.globals import html
@@ -233,7 +232,7 @@ def get_av_display_options(what):
          Tuple(
              title=_("Format time ranges"),
              elements=[
-                 RadioChoice(
+                 DropdownChoice(
                      choices=[
                          ("both", _("Percent and time")),
                          ("perc", _("Only percent")),
@@ -1148,7 +1147,7 @@ def melt_short_intervals(entries, duration, dont_merge):
 
 def save_annotations(annotations):
     path = cmk.utils.paths.var_dir + "/availability_annotations.mk"
-    store.save_data_to_file(path, annotations)
+    store.save_object_to_file(path, annotations)
 
 
 def load_annotations(lock=False):
@@ -1157,7 +1156,7 @@ def load_annotations(lock=False):
         # Support legacy old wrong name-clashing path
         path = cmk.utils.paths.var_dir + "/web/statehist_annotations.mk"
 
-    return store.load_data_from_file(path, {}, lock)
+    return store.load_object_from_file(path, default={}, lock=lock)
 
 
 def update_annotations(site_host_svc, annotation, replace_existing):
@@ -1819,8 +1818,6 @@ def get_bi_leaf_history(aggr_rows, time_range, livestatus_limit):
 
 
 def compute_bi_timelines(timeline_containers, time_range, timewarp, phases_list):
-    bi.load_assumptions()
-
     if not timeline_containers:
         return timeline_containers
 

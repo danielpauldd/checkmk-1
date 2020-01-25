@@ -210,6 +210,90 @@ rulespec_registry.register(
     ))
 
 
+def _valuespec_generic_metrics_prometheus():
+    return Dictionary(
+        elements=[("port",
+                   Integer(
+                       title=_('API-Port'),
+                       help=_("If no port is given a default vaulue of 443 will be used."),
+                       default_value=443,
+                   )),
+                  ("promql_checks",
+                   ListOf(
+                       Dictionary(elements=[
+                           ("service_description",
+                            TextAscii(
+                                title=_('Service description: '),
+                                allow_empty=False,
+                            )),
+                           ("metric_components",
+                            ListOf(Dictionary(
+                                title=_('PromQL query'),
+                                elements=[
+                                    ("metric_label",
+                                     TextAscii(title=_('Metric Label: '),
+                                               allow_empty=False,
+                                               help="The Metric Label is displayed alongside the "
+                                               "queried value within the resulting service. "
+                                               "The metric name will be taken as label if "
+                                               "nothing was specified.")),
+                                    ("metric_name",
+                                     TextAscii(title=_('Metric Name: '),
+                                               allow_empty=False,
+                                               help="Feel free to specify any naming. However, "
+                                               "providing a fitting metric name results in the "
+                                               "generation of a suitable graph display of the "
+                                               "metric. One can refer to other existing check "
+                                               "plug-ins in order to inspect existing metric "
+                                               "names and examples. Otherwise one can also "
+                                               "refer to the \"Guidelines for coding check "
+                                               "plug-ins\" section in the Offical Guide for "
+                                               "further details.")),
+                                    ("promql_query",
+                                     TextAscii(title=_('PromQL query: '),
+                                               allow_empty=False,
+                                               size=80)),
+                                ],
+                                optional_keys=["metric_label"],
+                            ),
+                                   title=_('PromQL queries for Service'),
+                                   allow_empty=False,
+                                   magic='@;@',
+                                   validate=_validate_prometheus_service_metrics)),
+                           ("host_name",
+                            TextAscii(title=_('Assign service to following host: '),
+                                      allow_empty=False,
+                                      help="Specify the host to which the resulting "
+                                      "service will be assigned to. The host "
+                                      "should be configured to allow Piggyback "
+                                      "data")),
+                       ],
+                                  optional_keys=["host_name"]),
+                       title=_("Service creation using PromQL queries"),
+                       allow_empty=False,
+                   ))],
+        title=_("Prometheus"),
+        optional_keys=["port"],
+    )
+
+
+def _validate_prometheus_service_metrics(value, _varprefix):
+    used_metric_names = []
+    for metric_details in value:
+        metric_name = metric_details["metric_name"]
+        if metric_name in used_metric_names:
+            raise MKUserError(metric_name, "Each metric name must be unique for a service")
+        else:
+            used_metric_names.append(metric_name)
+
+
+rulespec_registry.register((HostRulespec(
+    group=RulespecGroupDatasourcePrograms,
+    name="special_agents:prometheus",
+    valuespec=_valuespec_generic_metrics_prometheus,
+)))
+
+
 def _factory_default_special_agents_vsphere():
     # No default, do not use setting if no rule matches
     return watolib.Rulespec.FACTORY_DEFAULT_UNUSED
@@ -2301,13 +2385,13 @@ def _factory_default_special_agents_graylog():
 def _valuespec_special_agents_graylog():
     return Dictionary(
         title=_("Check state of Graylog"),
-        help=_("Requests node, cluster and indice data from a graylog "
+        help=_("Requests node, cluster and indice data from a Graylog "
                "instance."),
         optional_keys=["port"],
         elements=[
             ("instance",
              TextAscii(
-                 title=_("Graylog instance to query."),
+                 title=_("Graylog instance to query"),
                  help=_("Use this option to set which instance should be "
                         "checked by the special agent. Please add the "
                         "hostname here, eg. my_graylog.com."),
@@ -2318,7 +2402,7 @@ def _valuespec_special_agents_graylog():
              TextAscii(
                  title=_("Username"),
                  help=_("The username that should be used for accessing the "
-                        "graylog API. Has to have read permissions at least."),
+                        "Graylog API. Has to have read permissions at least."),
                  size=32,
                  allow_empty=False,
              )),
@@ -2345,17 +2429,17 @@ def _valuespec_special_agents_graylog():
             ("since",
              Age(
                  title=_("Time for coverage of failures"),
-                 help=_(
-                     "Use this option to set the timeframe in which failures should be covered."),
+                 help=_("If you choose to query for failed index operations, use "
+                        "this option to set the timeframe in which failures "
+                        "should be covered. The check will output the total "
+                        "number of failures and the number of failures in this "
+                        "given timeframe."),
                  default_value=1800,
              )),
             ("sections",
              ListChoice(
-                 title=_("Informations to query"),
-                 help=_("Defines what information to query. You can choose "
-                        "between the alarms, cluster statistics, failures, "
-                        "jvm heap size, message count, nodes and sidecar "
-                        "fleet."),
+                 title=_("Information to query"),
+                 help=_("Defines what information to query."),
                  choices=[
                      ("alerts", _("Alarms")),
                      ("cluster_stats", _("Cluster statistics")),
@@ -2365,11 +2449,13 @@ def _valuespec_special_agents_graylog():
                      ("license", _("License state")),
                      ("messages", _("Message count")),
                      ("nodes", _("Nodes")),
-                     ("sidecars", _("Sidecar fleet")),
+                     ("sidecars", _("Sidecars")),
+                     ("sources", _("Sources")),
+                     ("streams", _("Streams")),
                  ],
                  default_value=[
                      "alerts", "cluster_stats", "cluster_traffic", "failures", "jvm", "license",
-                     "messages", "nodes", "sidecars"
+                     "messages", "nodes", "sidecars", "streams"
                  ],
                  allow_empty=False,
              )),
@@ -2377,10 +2463,10 @@ def _valuespec_special_agents_graylog():
              DropdownChoice(
                  title=_("Display node details on"),
                  help=_("The node details can be displayed either on the "
-                        "queried host or the graylog node."),
+                        "queried host or the Graylog node."),
                  choices=[
-                     ("host", _("The queried graylog host")),
-                     ("node", _("The graylog node")),
+                     ("host", _("The queried Graylog host")),
+                     ("node", _("The Graylog node")),
                  ],
                  default_value="host",
              )),
@@ -2390,8 +2476,19 @@ def _valuespec_special_agents_graylog():
                  help=_("The sidecar details can be displayed either on the "
                         "queried host or the sidecar host."),
                  choices=[
-                     ("host", _("The queried graylog host")),
+                     ("host", _("The queried Graylog host")),
                      ("sidecar", _("The sidecar host")),
+                 ],
+                 default_value="host",
+             )),
+            ("display_source_details",
+             DropdownChoice(
+                 title=_("Display source details on"),
+                 help=_("The source details can be displayed either on the "
+                        "queried host or the source host."),
+                 choices=[
+                     ("host", _("The queried Graylog host")),
+                     ("source", _("The source host")),
                  ],
                  default_value="host",
              )),
@@ -2441,4 +2538,169 @@ rulespec_registry.register(
         group=RulespecGroupDatasourcePrograms,
         name="special_agents:couchbase",
         valuespec=_valuespec_special_agents_couchbase,
+    ))
+
+
+def _factory_default_special_agents_jira():
+    # No default, do not use setting if no rule matches
+    return watolib.Rulespec.FACTORY_DEFAULT_UNUSED
+
+
+def _vs_jira_projects(title):
+    return ListOf(
+        Tuple(
+            orientation="horizontal",
+            elements=[
+                TextAscii(
+                    title=_("Project"),
+                    help=_('Enter the full name of the '
+                           'project here. You can find '
+                           'the name in Jira within '
+                           '"Projects" - "View all '
+                           'projects" - column: "Project". '
+                           'This field is case '
+                           'insensitive'),
+                    allow_empty=False,
+                    regex="^[^']*$",
+                    regex_error=_("Single quotes are not allowed here."),
+                ),
+                ListOfStrings(
+                    title=_("Workflows"),
+                    help=_('Enter the workflow name for the project here. E.g. "in progress".'),
+                    valuespec=TextAscii(
+                        allow_empty=False,
+                        regex="^[^']*$",
+                        regex_error=_("Single quotes are not allowed here."),
+                    ),
+                    orientation="horizontal",
+                ),
+            ],
+        ),
+        add_label=_("Add new project"),
+        movable=False,
+        title=title,
+        validate=_validate_aws_tags,
+    )
+
+
+def _valuespec_special_agents_jira():
+    return Dictionary(
+        title=_("Check statistics of Jira"),
+        help=_("Use Jira Query Language (JQL) to get statistics out of your "
+               "Jira instance."),
+        elements=[
+            ("instance",
+             TextAscii(
+                 title=_("Jira instance to query"),
+                 help=_("Use this option to set which instance should be "
+                        "checked by the special agent. Please add the "
+                        "hostname here, eg. my_jira.com. If not set, the "
+                        "assigned host is used as instance."),
+                 size=32,
+                 allow_empty=False,
+             )),
+            ("user",
+             TextAscii(
+                 title=_("Username"),
+                 help=_("The username that should be used for accessing the "
+                        "Jira API."),
+                 size=32,
+                 allow_empty=False,
+             )),
+            ("password", PasswordFromStore(
+                title=_("Password of the user"),
+                allow_empty=False,
+            )),
+            ("protocol",
+             DropdownChoice(
+                 title=_("Protocol"),
+                 choices=[
+                     ("http", "HTTP"),
+                     ("https", "HTTPS"),
+                 ],
+                 default_value="https",
+             )),
+            (
+                "project_workflows",
+                _vs_jira_projects(
+                    _("Monitor the number of issues for given projects and there "
+                      "workflows. This results in a service for each project with "
+                      "the number of issues per workflow."),),
+            ),
+            ("jql",
+             ListOf(Dictionary(
+                 elements=[
+                     ("service_description",
+                      TextAscii(
+                          title=_('Service description: '),
+                          help=_("The resulting service will get this entry as "
+                                 "service description"),
+                          allow_empty=False,
+                      )),
+                     (
+                         "query",
+                         TextAscii(
+                             title=_('JQL query: '),
+                             help=_('E.g. \'project = my_project and result = '
+                                    '\"waiting for something\"\''),
+                             allow_empty=False,
+                             size=80,
+                         ),
+                     ),
+                     ("result",
+                      CascadingDropdown(
+                          title=_("Type of result"),
+                          help=_("Here you can define, what search result "
+                                 "should be used. You can show the number of search "
+                                 "results (count) or the summed up or average values "
+                                 "of a given numeric field."),
+                          choices=[
+                              ('count', _("Number of "
+                                          "search results")),
+                              ('sum', _("Summed up values of "
+                                        "the following numeric field:"),
+                               Tuple(elements=[
+                                   TextAscii(
+                                       title=_("Field Name: "),
+                                       allow_empty=False,
+                                   ),
+                                   Integer(
+                                       title=_("Limit number of processed search results"),
+                                       default_value=50,
+                                   ),
+                               ],)),
+                              ('average', _("Average value "
+                                            "of the following numeric field: "),
+                               Tuple(elements=[
+                                   TextAscii(
+                                       title=_("Field Name: "),
+                                       allow_empty=False,
+                                   ),
+                                   Integer(
+                                       title=_("Limit number of processed search results"),
+                                       default_value=50,
+                                   ),
+                               ],)),
+                          ],
+                          sorted=False,
+                      )),
+                 ],
+                 optional_keys=[],
+             ),
+                    title=_('Custom search query'))),
+        ],
+        optional_keys=[
+            "jql",
+            "project_workflows",
+            "instance",
+        ],
+    )
+
+
+rulespec_registry.register(
+    HostRulespec(
+        factory_default=_factory_default_special_agents_jira(),
+        group=RulespecGroupDatasourcePrograms,
+        name="special_agents:jira",
+        valuespec=_valuespec_special_agents_jira,
     ))

@@ -336,11 +336,16 @@ class CREFolder(BaseFolder):
 
     @staticmethod
     def folder_choices():
-        return Folder.root_folder().recursive_subfolder_choices()
+        if 'folder_choices' not in g:
+            g.folder_choices = Folder.root_folder().recursive_subfolder_choices()
+        return g.folder_choices
 
     @staticmethod
     def folder_choices_fulltitle():
-        return Folder.root_folder().recursive_subfolder_choices(current_depth=0, pretty=False)
+        if 'folder_choices_full_title' not in g:
+            g.folder_choices_full_title = Folder.root_folder().recursive_subfolder_choices(
+                current_depth=0, pretty=False)
+        return g.folder_choices_full_title
 
     @staticmethod
     def folder(folder_path):
@@ -375,6 +380,8 @@ class CREFolder(BaseFolder):
     @staticmethod
     def invalidate_caches():
         g.pop('wato_folders', {})
+        for cache_id in ["folder_choices", "folder_choices_full_title"]:
+            g.pop(cache_id, None)
         Folder.root_folder().drop_caches()
 
     # Find folder that is specified by the current URL. This is either by a folder
@@ -541,6 +548,13 @@ class CREFolder(BaseFolder):
         attributes = self._transform_none_value_site_attribute(attributes)
         attributes = self._add_missing_meta_data(attributes)
         attributes = self._transform_tag_snmp_ds(attributes)
+        attributes = self._transform_cgconf_attributes(attributes)
+        return attributes
+
+    def _transform_cgconf_attributes(self, attributes):
+        cgconf = attributes.get("contactgroups")
+        if cgconf:
+            attributes["contactgroups"] = convert_cgroups_from_tuple(cgconf)
         return attributes
 
     # In versions previous to 1.6 Checkmk had a tag group named "snmp" and an
@@ -577,6 +591,9 @@ class CREFolder(BaseFolder):
 
         if "tag_snmp" in attributes:
             return attributes  # Already in new format, no transformation necessary
+
+        if "meta_data" in attributes:
+            return attributes  # These attributes were already saved with version 1.6+
 
         value = attributes["tag_agent"]
 
@@ -672,7 +689,7 @@ class CREFolder(BaseFolder):
         host_labels = {}
 
         attribute_mappings = [
-            # host attr, cmk_base variable name, value, title
+            # host attr, cmk.base variable name, value, title
             ("ipaddress", "ipaddresses", {}, "Explicit IPv4 addresses"),
             ("ipv6address", "ipv6addresses", {}, "Explicit IPv6 addresses"),
             ("snmp_community", "explicit_snmp_communities", {}, "Explicit SNMP communities"),
@@ -840,7 +857,7 @@ class CREFolder(BaseFolder):
             self._save_wato_info()
 
     def _load_wato_info(self):
-        return store.load_data_from_file(self.wato_info_path(), {})
+        return store.load_object_from_file(self.wato_info_path(), default={})
 
     def save(self):
         self._save_wato_info()
@@ -848,7 +865,7 @@ class CREFolder(BaseFolder):
 
     def _save_wato_info(self):
         self._ensure_folder_directory()
-        store.save_data_to_file(self.wato_info_path(), self.get_wato_info())
+        store.save_object_to_file(self.wato_info_path(), self.get_wato_info())
 
     def get_wato_info(self):
         return {
